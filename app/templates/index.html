@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Ball Balancer Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  </head>
+  <body>
+    <h1>Ball Balancer Web Dashboard</h1>
+
+    <div id="status-box">
+      SocketIO status:
+      <span id="socket-status" class="status-disconnected">Disconnected</span>
+    </div>
+
+    <div class="grid">
+      <!-- 3D 플랫폼 -->
+      <section class="card">
+        <h2>Platform Pose (3D)</h2>
+        <div id="platform-container"></div>
+      </section>
+
+      <!-- 2D 조이스틱 -->
+      <section class="card">
+        <h2>Joystick / Target (2D)</h2>
+        <canvas id="joystick-canvas" width="260" height="260"></canvas>
+        <p class="small-note">x, y ∈ [-1, 1]</p>
+      </section>
+
+      <!-- 에러 그래프 -->
+      <section class="card full-width">
+        <h2>Error over Time</h2>
+        <canvas id="error-chart"></canvas>
+      </section>
+    </div>
+
+    <!-- 상태 raw 확인용 (디버깅용) -->
+    <section class="card full-width">
+      <h2>Last status JSON (debug)</h2>
+      <pre id="status-json" class="status-json"></pre>
+    </section>
+
+    <!-- 외부 라이브러리 CDN -->
+    <!-- three.js -->
+    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Socket.IO client -->
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"
+            crossorigin="anonymous"></script>
+
+    <!-- 우리 JS들 -->
+    <script src="{{ url_for('static', filename='js/three_scene.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  </body>
+</html>
