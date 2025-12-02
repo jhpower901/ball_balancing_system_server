@@ -27,18 +27,59 @@
         <p class="small-note">x, y ∈ [-1, 1]</p>
       </section>
 
+      <!-- 상태 raw 확인용 (디버깅용) -->
+      <section class="card">
+        <h2>Last status JSON (debug)</h2>
+        <pre id="status-json" class="status-json"></pre>
+      </section>
+
+      <!-- PID Control Card -->
+      <section class="card">
+        <h2>PID Control</h2>
+
+        <!-- Kp -->
+        <div class="pid-row">
+          <label for="kp-slider">Kp:</label>
+          <input type="range" id="kp-slider" min="0" max="5" step="0.01" value="0">
+          <span id="kp-value">0.00</span>
+        </div>
+
+        <!-- Ki -->
+        <div class="pid-row">
+          <label for="ki-slider">Ki:</label>
+          <input type="range" id="ki-slider" min="0" max="5" step="0.01" value="0">
+          <span id="ki-value">0.00</span>
+        </div>
+
+        <!-- Kd -->
+        <div class="pid-row">
+          <label for="kd-slider">Kd:</label>
+          <input type="range" id="kd-slider" min="0" max="5" step="0.01" value="0">
+          <span id="kd-value">0.00</span>
+        </div>
+
+        <!-- Target Pose -->
+        <div class="pid-row">
+          <label for="target-x">Target X:</label>
+          <input type="number" id="target-x" step="0.01" value="0.0">
+        </div>
+
+        <div class="pid-row">
+          <label for="target-y">Target Y:</label>
+          <input type="number" id="target-y" step="0.01" value="0.0">
+        </div>
+
+        <button id="pid-apply-btn" class="pid-button">Apply</button>
+      </section>
+
+
       <!-- 에러 그래프 -->
       <section class="card full-width">
         <h2>Error over Time</h2>
-        <canvas id="error-chart"></canvas>
+        <canvas id="error-chart" height="50"></canvas>
       </section>
     </div>
 
-    <!-- 상태 raw 확인용 (디버깅용) -->
-    <section class="card full-width">
-      <h2>Last status JSON (debug)</h2>
-      <pre id="status-json" class="status-json"></pre>
-    </section>
 
     <!-- 외부 라이브러리 CDN -->
     <!-- three.js -->

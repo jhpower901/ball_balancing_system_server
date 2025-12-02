@@ -138,3 +138,43 @@ window.addEventListener("DOMContentLoaded", () => {
   // 초깃값: 조이스틱 (0,0), 공 (0,0)
   drawJoystick(0, 0, 0, 0);
 });
+
+// ===== PID UI =====
+
+// 슬라이더 요소
+const kpSlider = document.getElementById("kp-slider");
+const kiSlider = document.getElementById("ki-slider");
+const kdSlider = document.getElementById("kd-slider");
+
+const kpValue = document.getElementById("kp-value");
+const kiValue = document.getElementById("ki-value");
+const kdValue = document.getElementById("kd-value");
+
+const targetX = document.getElementById("target-x");
+const targetY = document.getElementById("target-y");
+const pidApplyBtn = document.getElementById("pid-apply-btn");
+
+// 슬라이더 값 표시 업데이트
+kpSlider.addEventListener("input", () => kpValue.textContent = Number(kpSlider.value).toFixed(2));
+kiSlider.addEventListener("input", () => kiValue.textContent = Number(kiSlider.value).toFixed(2));
+kdSlider.addEventListener("input", () => kdValue.textContent = Number(kdSlider.value).toFixed(2));
+
+// Apply 버튼 → SocketIO send
+pidApplyBtn.addEventListener("click", () => {
+  const payload = {
+    PID_const: {
+      Kp: Number(kpSlider.value),
+      Ki: Number(kiSlider.value),
+      Kd: Number(kdSlider.value),
+    },
+    time: Date.now() / 1000,        // 서버 시간 보낼 때
+    ctr_mode: "manual",
+    target_pose: {
+      x: Number(targetX.value),
+      y: Number(targetY.value),
+    }
+  };
+
+  console.log("PID APPLY:", payload);
+  socket.emit("set_pid", payload);
+});

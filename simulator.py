@@ -7,7 +7,7 @@ import math
 
 # --- 설정 변수 ---
 MQTT_BROKER = "anzam.kr"
-MQTT_TOPIC = "simulator/data"
+MQTT_TOPIC = "ballbalancer/status"
 SIMULATION_FREQUENCY = 20  # Hz
 LOOP_DELAY = 1 / SIMULATION_FREQUENCY  # 초당 루프 딜레이
 G = 9.81  # 중력 가속도 (m/s^2)

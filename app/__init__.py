@@ -3,8 +3,8 @@ from flask_socketio import SocketIO
 
 socketio = SocketIO(
     cors_allowed_origins="*",
-    async_mode="eventlet",
-    #async_mode="threading",
+    #sync_mode="eventlet",
+    async_mode="threading",
 )
 
 from .mqtt_client import init_mqtt  # socketio 정의 아래에 위치

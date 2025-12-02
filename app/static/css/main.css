@@ -72,6 +72,43 @@ h1 {
   font-size: 12px;
   padding: 8px;
   border-radius: 8px;
-  max-height: 200px;
+  max-height: 270px;
   overflow: auto;
+}
+
+.pid-row {
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pid-row label {
+  width: 70px;
+  font-weight: bold;
+}
+
+
+.pid-row input[type="range"] {
+  flex: 1;
+}
+
+.pid-row span {
+  width: 40px;
+  text-align: right;
+}
+
+.pid-button {
+  margin-top: 10px;
+  padding: 10px 18px;
+  background-color: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.pid-button:hover {
+  background-color: #125ca0;
 }
