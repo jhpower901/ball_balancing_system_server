@@ -63,6 +63,7 @@ h1 {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 
+
 .card h2 {
   margin-top: 0;
   margin-bottom: 8px;
@@ -83,6 +84,9 @@ h1 {
   border: 1px solid #ccc;
   border-radius: 8px;
   background: #fafafa;
+  display: block;
+  margin: 0 auto
+
 }
 
 .small-note {
@@ -95,27 +99,34 @@ h1 {
   background: #111;
   color: #0f0;
   font-size: 12px;
-  padding: 8px;
+  padding: 10px;
   border-radius: 8px;
-  max-height: 270px;
+  max-height: 300px;
   overflow: auto;
 }
 
 .pid-row {
-  margin-bottom: 10px;
+  margin-bottom: 2px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 5px;
+}
+
+.pid-col h3 {
+  margin: 4px 0 6px 0;
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 .pid-row label {
-  width: 70px;
+  width: 50px;
   font-weight: bold;
 }
 
 
 .pid-row input[type="range"] {
   flex: 1;
+  height: 6px;
 }
 
 .pid-row span {
@@ -125,6 +136,7 @@ h1 {
 
 .pid-button {
   margin-top: 10px;
+  margin-bottom: 10px;
   padding: 10px 18px;
   background-color: #1976d2;
   color: white;

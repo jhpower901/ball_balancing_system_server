@@ -69,26 +69,56 @@
       <section class="card">
         <h2>PID Control</h2>
 
-        <!-- Kp -->
-        <div class="pid-row">
-          <label for="kp-slider">Kp:</label>
-          <input type="range" id="kp-slider" min="0" max="5" step="0.01" value="0">
-          <span id="kp-value">0.00</span>
+        <div class="pid-grid">
+
+          <!-- X-axis PID -->
+          <div class="pid-col">
+            <h3>X-axis</h3>
+
+            <div class="pid-row">
+              <label for="kp-x-slider">Kp_x:</label>
+              <input type="range" id="kp-x-slider" min="0" max="5" step="0.01" value="0">
+              <span id="kp-x-value">0.00</span>
+            </div>
+
+            <div class="pid-row">
+              <label for="ki-x-slider">Ki_x:</label>
+              <input type="range" id="ki-x-slider" min="0" max="5" step="0.01" value="0">
+              <span id="ki-x-value">0.00</span>
+            </div>
+
+            <div class="pid-row">
+              <label for="kd-x-slider">Kd_x:</label>
+              <input type="range" id="kd-x-slider" min="0" max="5" step="0.01" value="0">
+              <span id="kd-x-value">0.00</span>
+            </div>
+          </div>
+
+          <!-- Y-axis PID -->
+          <div class="pid-col">
+            <h3>Y-axis</h3>
+
+            <div class="pid-row">
+              <label for="kp-y-slider">Kp_y:</label>
+              <input type="range" id="kp-y-slider" min="0" max="5" step="0.01" value="0">
+              <span id="kp-y-value">0.00</span>
+            </div>
+
+            <div class="pid-row">
+              <label for="ki-y-slider">Ki_y:</label>
+              <input type="range" id="ki-y-slider" min="0" max="5" step="0.01" value="0">
+              <span id="ki-y-value">0.00</span>
+            </div>
+
+            <div class="pid-row">
+              <label for="kd-y-slider">Kd_y:</label>
+              <input type="range" id="kd-y-slider" min="0" max="5" step="0.01" value="0">
+              <span id="kd-y-value">0.00</span>
+            </div>
+          </div>
         </div>
 
-        <!-- Ki -->
-        <div class="pid-row">
-          <label for="ki-slider">Ki:</label>
-          <input type="range" id="ki-slider" min="0" max="5" step="0.01" value="0">
-          <span id="ki-value">0.00</span>
-        </div>
-
-        <!-- Kd -->
-        <div class="pid-row">
-          <label for="kd-slider">Kd:</label>
-          <input type="range" id="kd-slider" min="0" max="5" step="0.01" value="0">
-          <span id="kd-value">0.00</span>
-        </div>
+        <button id="pid-apply-btn" class="pid-button">Apply</button>
 
         <!-- Target 숫자 입력 + Center 버튼 -->
         <div class="pid-row">
@@ -115,8 +145,6 @@
             </div>
           </div>
         </div>
-
-        <button id="pid-apply-btn" class="pid-button">Apply</button>
       </section>
 
 

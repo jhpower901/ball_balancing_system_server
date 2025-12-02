@@ -32,12 +32,18 @@ const platformRollEl = document.getElementById("platform-roll-value");
 const platformPitchEl = document.getElementById("platform-pitch-value");
 
 // PID UI
-const kpSlider = document.getElementById("kp-slider");
-const kiSlider = document.getElementById("ki-slider");
-const kdSlider = document.getElementById("kd-slider");
-const kpValue = document.getElementById("kp-value");
-const kiValue = document.getElementById("ki-value");
-const kdValue = document.getElementById("kd-value");
+const kpXSlider = document.getElementById("kp-x-slider");
+const kiXSlider = document.getElementById("ki-x-slider");
+const kdXSlider = document.getElementById("kd-x-slider");
+const kpYSlider = document.getElementById("kp-y-slider");
+const kiYSlider = document.getElementById("ki-y-slider");
+const kdYSlider = document.getElementById("kd-y-slider");
+const kpXValue = document.getElementById("kp-x-value");
+const kiXValue = document.getElementById("ki-x-value");
+const kdXValue = document.getElementById("kd-x-value");
+const kpYValue = document.getElementById("kp-y-value");
+const kiYValue = document.getElementById("ki-y-value");
+const kdYValue = document.getElementById("kd-y-value");
 const targetX = document.getElementById("target-x");
 const targetY = document.getElementById("target-y");
 const pidApplyBtn = document.getElementById("pid-apply-btn");
@@ -259,6 +265,7 @@ socket.on("disconnect", () => {
 });
 
 // ESP hello → 웹 초기화
+
 socket.on("device_hello", (data) => {
   console.log("DEVICE HELLO:", data);
 
@@ -267,17 +274,30 @@ socket.on("device_hello", (data) => {
   const field = data.field_size || {};
 
   // PID 슬라이더 초기값
-  if (kpSlider && typeof pid.Kp !== "undefined") {
-    kpSlider.value = pid.Kp;
-    if (kpValue) kpValue.textContent = Number(pid.Kp).toFixed(2);
+  if (kpXSlider && typeof pid.kp_x !== "undefined") {
+    kpXSlider.value = pid.kp_x;
+    kpXValue.textContent = Number(pid.kp_x).toFixed(2);
   }
-  if (kiSlider && typeof pid.Ki !== "undefined") {
-    kiSlider.value = pid.Ki;
-    if (kiValue) kiValue.textContent = Number(pid.Ki).toFixed(2);
+  if (kiXSlider && typeof pid.ki_x !== "undefined") {
+    kiXSlider.value = pid.ki_x;
+    kiXValue.textContent = Number(pid.ki_x).toFixed(2);
   }
-  if (kdSlider && typeof pid.Kd !== "undefined") {
-    kdSlider.value = pid.Kd;
-    if (kdValue) kdValue.textContent = Number(pid.Kd).toFixed(2);
+  if (kdXSlider && typeof pid.kd_x !== "undefined") {
+    kdXSlider.value = pid.kd_x;
+    kdXValue.textContent = Number(pid.kd_x).toFixed(2);
+  }
+
+  if (kpYSlider && typeof pid.kp_y !== "undefined") {
+    kpYSlider.value = pid.kp_y;
+    kpYValue.textContent = Number(pid.kp_y).toFixed(2);
+  }
+  if (kiYSlider && typeof pid.ki_y !== "undefined") {
+    kiYSlider.value = pid.ki_y;
+    kiYValue.textContent = Number(pid.ki_y).toFixed(2);
+  }
+  if (kdYSlider && typeof pid.kd_y !== "undefined") {
+    kdYSlider.value = pid.kd_y;
+    kdYValue.textContent = Number(pid.kd_y).toFixed(2);
   }
 
   // 초기 platform pose
@@ -388,41 +408,37 @@ window.addEventListener("DOMContentLoaded", () => {
   drawTargetPlane(0, 0);
 
   // ===== PID 슬라이더 이벤트 =====
-  if (kpSlider && kpValue) {
-    kpSlider.addEventListener("input", () => {
-      kpValue.textContent = Number(kpSlider.value).toFixed(2);
-    });
-  }
-  if (kiSlider && kiValue) {
-    kiSlider.addEventListener("input", () => {
-      kiValue.textContent = Number(kiSlider.value).toFixed(2);
-    });
-  }
-  if (kdSlider && kdValue) {
-    kdSlider.addEventListener("input", () => {
-      kdValue.textContent = Number(kdSlider.value).toFixed(2);
-    });
-  }
+  kpXSlider.addEventListener("input", () => kpXValue.textContent = Number(kpXSlider.value).toFixed(2));
+  kiXSlider.addEventListener("input", () => kiXValue.textContent = Number(kiXSlider.value).toFixed(2));
+  kdXSlider.addEventListener("input", () => kdXValue.textContent = Number(kdXSlider.value).toFixed(2));
+
+  kpYSlider.addEventListener("input", () => kpYValue.textContent = Number(kpYSlider.value).toFixed(2));
+  kiYSlider.addEventListener("input", () => kiYValue.textContent = Number(kiYSlider.value).toFixed(2));
+  kdYSlider.addEventListener("input", () => kdYValue.textContent = Number(kdYSlider.value).toFixed(2));
 
   // Apply 버튼 → SocketIO send
   if (pidApplyBtn) {
     pidApplyBtn.addEventListener("click", () => {
-      if (!kpSlider || !kiSlider || !kdSlider || !targetX || !targetY) return;
-
+      if (!kpXSlider || !kiXSlider || !kdXSlider || !kpYSlider || !kiYSlider || !kdYSlider || !targetX || !targetY) return;
       const payload = {
         PID_const: {
-          Kp: Number(kpSlider.value),
-          Ki: Number(kiSlider.value),
-          Kd: Number(kdSlider.value),
+          kp_x: Number(kpXSlider.value),
+          ki_x: Number(kiXSlider.value),
+          kd_x: Number(kdXSlider.value),
+
+          kp_y: Number(kpYSlider.value),
+          ki_y: Number(kiYSlider.value),
+          kd_y: Number(kdYSlider.value),
         },
+
         time: Date.now() / 1000,
         ctr_mode: "manual",
+
         target_pose: {
           x: Number(targetX.value),
           y: Number(targetY.value),
-        },
+        }
       };
-
       console.log("PID APPLY:", payload);
       socket.emit("set_pid", payload);
     });

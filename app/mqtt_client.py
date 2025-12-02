@@ -21,42 +21,48 @@ MQTT_TOPIC_CMD    = "ballbalancer/cmd"
 '''
 [status payload 예시]
 {
+  "time": 1764648990.455,
   "platform_pose": {
     "roll": 0,
     "pitch": 3
   },
-  "joystick_val": {
-    "x": 1,
-    "y": 0.5
+  "target_pose": {
+    "x": 0,
+    "y": 0
   },
   "real_pose": {
     "x": -0.9,
     "y": 0.7
   },
+  "joystick_val": {
+    "x": 1,
+    "y": 0.5
+  },
   "error": {
     "x": 0.77,
     "y": -0.0
   },
-  "time": 1764648990.455,
   "PID_const": {
-        "Kp": 0,
-        "Ki": 3.34,
-        "Kd": 1.13
-    },
-    "ctr_mode": "manual",
-    "target_pose": {
-        "x": 0,
-        "y": 0
-    }
+        "kp_x": 0.55,
+        "ki_x": 0.05,
+        "kd_x": 0.275,
+        "kp_y": 0.35,
+        "ki_y": 0.05,
+        "kd_y": 0.16
+  },
+  "ctr_mode": "manual"
 }
 
 
 [cmd payload 예시]
 {
   "PID_const": {
-    "Kp": 0,
-    "Ki": 0,
-    "Kd": 0
+        "kp_x": 0.55,
+        "ki_x": 0.05,
+        "kd_x": 0.275,
+        "kp_y": 0.35,
+        "ki_y": 0.05,
+        "kd_y": 0.16
   },
   "time": 1764658733.651,
   "ctr_mode": "manual",
@@ -72,9 +78,12 @@ MQTT_TOPIC_CMD    = "ballbalancer/cmd"
   "device_id": "esp32-ball-1",
   "firmware": "1.0.0",
   "PID_const": {
-    "Kp": 1,
-    "Ki": 0,
-    "Kd": 0
+        "kp_x": 0.55,
+        "ki_x": 0.05,
+        "kd_x": 0.275,
+        "kp_y": 0.35,
+        "ki_y": 0.05,
+        "kd_y": 0.16
   },
   "platform_pose": {
     "roll": 0,
