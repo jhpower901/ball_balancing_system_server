@@ -11,6 +11,9 @@
     <div id="status-box">
       SocketIO status:
       <span id="socket-status" class="status-disconnected">Disconnected</span>
+      &nbsp;|&nbsp;
+      Device info:
+      <span id="device-id-label" class="info">(waiting for hello...)</span>
     </div>
 
     <div class="grid">
@@ -18,13 +21,39 @@
       <section class="card">
         <h2>Platform Pose (3D)</h2>
         <div id="platform-container"></div>
+        <div class="pose-values small-note">
+        roll: <span id="platform-roll-value">0.00</span>°
+        &nbsp;&nbsp;
+        pitch: <span id="platform-pitch-value">0.00</span>°
+      </div>
       </section>
 
-      <!-- 2D 조이스틱 -->
+      <!-- Target Plane (실제 크기 + ball_pose) -->
       <section class="card">
-        <h2>Joystick / Target (2D)</h2>
+        <h2>Target Plane</h2>
+        <p class="small-note">
+          Field size:
+          <span id="field-size-label">unknown</span>
+        </p>
+        <canvas id="target-canvas"></canvas>
+        <p class="small-note">
+          ball pose: (
+          <span id="ball-x-val">0.00</span>,
+          <span id="ball-y-val">0.00</span>
+          )
+        </p>
+      </section>
+
+      <!-- Joystick 카드 -->
+      <section class="card">
+        <h2>Joystick</h2>
         <canvas id="joystick-canvas" width="260" height="260"></canvas>
-        <p class="small-note">x, y ∈ [-1, 1]</p>
+        <p class="small-note">
+          joystick (normalized): (
+          <span id="joy-x-val">0.00</span>,
+          <span id="joy-y-val">0.00</span>
+          )
+        </p>
       </section>
 
       <!-- 상태 raw 확인용 (디버깅용) -->

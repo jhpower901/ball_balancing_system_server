@@ -7,7 +7,8 @@ import paho.mqtt.client as mqtt
 MQTT_HOST = "anzam.kr"   # 필요 시 수정
 MQTT_PORT = 1883
 MQTT_TOPIC_STATUS = "ballbalancer/status"
-MQTT_TOPIC_CMD = "ballbalancer/cmd"
+MQTT_TOPIC_HELLO  = "ballbalancer/hello"
+MQTT_TOPIC_CMD    = "ballbalancer/cmd"
 
 #TODO: 실시간 디버그 콘솔 (任意 MQTT publish/subscribe)
 #TODO: MQTT 기반 영상 스트림 or WebRTC 카메라 스트림
@@ -18,7 +19,7 @@ MQTT_TOPIC_CMD = "ballbalancer/cmd"
 
 
 '''
-payload 예시
+[status payload 예시]
 {
   "platform_pose": {
     "roll": 0,
@@ -47,6 +48,42 @@ payload 예시
         "x": 0,
         "y": 0
     }
+}
+
+
+[cmd payload 예시]
+{
+  "PID_const": {
+    "Kp": 0,
+    "Ki": 0,
+    "Kd": 0
+  },
+  "time": 1764658733.651,
+  "ctr_mode": "manual",
+  "target_pose": {
+    "x": 0.5,
+    "y": 0
+  }
+}
+
+
+[hello payload 예시]
+{
+  "device_id": "esp32-ball-1",
+  "firmware": "1.0.0",
+  "PID_const": {
+    "Kp": 1,
+    "Ki": 0,
+    "Kd": 0
+  },
+  "platform_pose": {
+    "roll": 0,
+    "pitch": 0
+  },
+  "field_size": {
+    "width": 260,
+    "height": 200
+  }
 }
 '''
 
@@ -78,6 +115,7 @@ class MQTTClient:
     def on_connect(self, client, userdata, flags, rc):
         print("[MQTT] Connected with result code", rc)
         client.subscribe(MQTT_TOPIC_STATUS)
+        client.subscribe(MQTT_TOPIC_HELLO)
 
     def on_disconnect(self, client, userdata, rc):
         print("[MQTT] Disconnected:", rc)
@@ -89,10 +127,62 @@ class MQTTClient:
             print("[MQTT] Invalid JSON")
             return
 
-        # SocketIO를 통해 브라우저로 전달
-        self.socketio.emit("status_update", payload, namespace="/")
 
         print(f"[MQTT] <{msg.topic}> {payload}")
+
+        if msg.topic == MQTT_TOPIC_STATUS:
+            # SocketIO를 통해 브라우저로 전달
+            self.socketio.emit("status_update", payload, namespace="/")
+            print(f"[MQTT] <{msg.topic}> {payload}")
+
+        elif msg.topic == MQTT_TOPIC_HELLO:
+            print(f"[MQTT] HELLO from device: {payload}")
+            self.handle_hello(payload)
+
+        else:
+            print(f"[MQTT] <{msg.topic}> {payload}")
+
+    def handle_hello(self, payload):
+        """ESP 부팅 hello → 웹 초기화 + handshake cmd 전송"""
+
+        device_id = payload.get("device_id", "unknown")
+        pid_const = payload.get("PID_const", {})
+        platform_pose = payload.get("platform_pose", {})
+        firmware = payload.get("firmware", "unknown")
+        field_size = payload.get("field_size", None)
+
+        # 1) 웹 대시보드 초기화 이벤트 emit
+        #    → main.js에서 device_hello 이벤트로 받아서
+        #      PID 슬라이더, 3D pose, device_id 표시
+        self.socketio.emit("device_hello", {
+            "device_id": device_id,
+            "PID_const": pid_const,
+            "platform_pose": platform_pose,
+            "firmware": firmware,
+            "field_size": field_size,
+        }, namespace="/")
+
+        # 2) handshake cmd 생성
+        #    - 기본적으로 ESP가 준 PID 값을 그대로 돌려보내되
+        #      time, ctr_mode, target_pose 는 서버에서 채움
+        cmd = {
+            "device_id": device_id,
+            "PID_const": {
+                "Kp": float(pid_const.get("Kp", 0.0)),
+                "Ki": float(pid_const.get("Ki", 0.0)),
+                "Kd": float(pid_const.get("Kd", 0.0)),
+            },
+            "time": time.time(),
+            "ctr_mode": "manual",
+            "target_pose": {
+                "x": 0.0,
+                "y": 0.0,
+            }
+        }
+
+        self.publish_cmd(cmd)
+        print("[MQTT] sent handshake cmd:", cmd)
+
 
     def publish_cmd(self, payload):
         import json

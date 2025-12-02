@@ -8,9 +8,34 @@ h1 {
   margin-bottom: 12px;
 }
 
-#status-box {
-  margin-bottom: 16px;
+
+
+.status-box {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 12px;
   font-size: 14px;
+}
+
+.pose-values {
+  margin-top: 6px;
+}
+
+#socket-status {
+  font-weight: bold;
+}
+
+#target-canvas {
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background: #fafafa;
+  display: block;
+  margin: 0 auto;
+}
+
+#device-id-label {
+  color: #555;
 }
 
 .status-connected {
