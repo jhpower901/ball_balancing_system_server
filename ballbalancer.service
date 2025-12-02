@@ -1,0 +1,16 @@
+[Unit]
+Description=Gunicorn service for order
+After=network.target
+
+[Service]
+User=ahnbujang
+WorkingDirectory=/home/ahnbujang/ball_balancing_system_server
+ExecStart=/home/ahnbujang/ball_balancing_system_server/.venv/bin/gunicorn -k eventlet -w 1 wsgi:app --bind 0.0.0.0:5002
+Restart=always
+Environment="PYTHONUNBUFFERED=1"
+Environment="PYTHONPATH=/home/ahnbujang/ball_balancing_system_server:$PYTHONPATH"
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
