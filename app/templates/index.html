@@ -37,9 +37,12 @@
         </p>
         <canvas id="target-canvas"></canvas>
         <p class="small-note">
-          ball pose: (
+          actual pose: (
           <span id="ball-x-val">0.00</span>,
           <span id="ball-y-val">0.00</span>
+          ) → target pose: (
+          <span id="tar-x-val">0.00</span>,
+          <span id="tar-y-val">0.00</span>
           )
         </p>
       </section>
@@ -87,15 +90,30 @@
           <span id="kd-value">0.00</span>
         </div>
 
-        <!-- Target Pose -->
+        <!-- Target 숫자 입력 + Center 버튼 -->
         <div class="pid-row">
-          <label for="target-x">Target X:</label>
-          <input type="number" id="target-x" step="0.01" value="0.0">
+          <label>Target:</label>
+          <input type="number" id="target-x" step="0.01" value="0.0" style="width:80px;">
+          <span>,</span>
+          <input type="number" id="target-y" step="0.01" value="0.0" style="width:80px;">
         </div>
 
+        <!-- 방향키 패드 -->
         <div class="pid-row">
-          <label for="target-y">Target Y:</label>
-          <input type="number" id="target-y" step="0.01" value="0.0">
+          <label></label>
+          <div class="target-arrow-grid">
+            <div class="arrow-row">
+              <button id="target-up-btn" class="arrow-btn">▲</button>
+            </div>
+            <div class="arrow-row">
+              <button id="target-left-btn" class="arrow-btn">◀</button>
+              <button id="target-center-pad-btn" class="arrow-btn small">●</button>
+              <button id="target-right-btn" class="arrow-btn">▶</button>
+            </div>
+            <div class="arrow-row">
+              <button id="target-down-btn" class="arrow-btn">▼</button>
+            </div>
+          </div>
         </div>
 
         <button id="pid-apply-btn" class="pid-button">Apply</button>

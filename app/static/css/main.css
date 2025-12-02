@@ -137,3 +137,36 @@ h1 {
 .pid-button:hover {
   background-color: #125ca0;
 }
+
+.target-arrow-grid {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.target-arrow-grid .arrow-row {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+}
+
+.arrow-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background: #f5f5f5;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.arrow-btn:hover {
+  background: #e0e0e0;
+}
+
+.arrow-btn.small {
+  width: 28px;
+  height: 28px;
+  font-size: 12px;
+}

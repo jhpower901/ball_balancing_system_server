@@ -1,5 +1,9 @@
 // main.js
 
+// ================================
+// 1. 기본 설정 & DOM 참조
+// ================================
+
 // three_scene.js / charts.js 에서 window에 올려둔 전역 함수 사용
 const socket = io();
 
@@ -10,22 +14,24 @@ const deviceIdEl = document.getElementById("device-id-label");
 
 // Joystick
 const joystickCanvas = document.getElementById("joystick-canvas");
-const joystickCtx = joystickCanvas.getContext("2d");
+const joystickCtx = joystickCanvas ? joystickCanvas.getContext("2d") : null;
 const joyXValEl = document.getElementById("joy-x-val");
 const joyYValEl = document.getElementById("joy-y-val");
 
 // Target plane
 const targetCanvas = document.getElementById("target-canvas");
-const targetCtx = targetCanvas.getContext("2d");
+const targetCtx = targetCanvas ? targetCanvas.getContext("2d") : null;
 const fieldSizeLabelEl = document.getElementById("field-size-label");
 const ballXValEl = document.getElementById("ball-x-val");
 const ballYValEl = document.getElementById("ball-y-val");
+const tarXValEl = document.getElementById("tar-x-val");
+const tarYValEl = document.getElementById("tar-y-val");
 
 // Platform pose numeric
 const platformRollEl = document.getElementById("platform-roll-value");
 const platformPitchEl = document.getElementById("platform-pitch-value");
 
-// PID UI (이미 있던 부분)
+// PID UI
 const kpSlider = document.getElementById("kp-slider");
 const kiSlider = document.getElementById("ki-slider");
 const kdSlider = document.getElementById("kd-slider");
@@ -36,21 +42,37 @@ const targetX = document.getElementById("target-x");
 const targetY = document.getElementById("target-y");
 const pidApplyBtn = document.getElementById("pid-apply-btn");
 
+// Target control buttons
+const targetCenterBtn = document.getElementById("target-center-btn");
+const targetUpBtn = document.getElementById("target-up-btn");
+const targetDownBtn = document.getElementById("target-down-btn");
+const targetLeftBtn = document.getElementById("target-left-btn");
+const targetRightBtn = document.getElementById("target-right-btn");
+const targetCenterPadBtn = document.getElementById("target-center-pad-btn");
+
 // Target plane 실제 크기 (hello에서 초기화, 단위: mm)
 let fieldWidth = null;
 let fieldHeight = null;
 
-// 캔버스가 차지할 최대 픽셀 크기(원하는 값으로 조절)
+// 방향키 한 번 클릭할 때 이동량 (단위: 실제 좌표)
+const TARGET_STEP = 5.0;
+
+// 캔버스가 차지할 최대 픽셀 크기
 const TARGET_CANVAS_MAX_W = 250;
 const TARGET_CANVAS_MAX_H = 250;
 
+// ================================
+// 2. 헬퍼 함수들
+// ================================
+
 function setStatus(text, cls) {
+  if (!statusEl) return;
   statusEl.textContent = text;
   statusEl.className = cls;
 }
 
 function drawJoystick(nx, ny) {
-  if (!joystickCtx) return;
+  if (!joystickCtx || !joystickCanvas) return;
 
   const w = joystickCanvas.width;
   const h = joystickCanvas.height;
@@ -88,7 +110,6 @@ function drawJoystick(nx, ny) {
   joystickCtx.fillStyle = "#e53935"; // 빨간색
   joystickCtx.fill();
 
-  // 숫자 표시
   if (joyXValEl) joyXValEl.textContent = nx.toFixed(2);
   if (joyYValEl) joyYValEl.textContent = ny.toFixed(2);
 }
@@ -96,7 +117,6 @@ function drawJoystick(nx, ny) {
 function resizeTargetCanvas() {
   if (!targetCanvas || !fieldWidth || !fieldHeight) return;
 
-  // 필드 비율에 맞춰 캔버스 크기 결정
   const scale = Math.min(
     TARGET_CANVAS_MAX_W / fieldWidth,
     TARGET_CANVAS_MAX_H / fieldHeight
@@ -105,28 +125,22 @@ function resizeTargetCanvas() {
   const newW = Math.round(fieldWidth * scale);
   const newH = Math.round(fieldHeight * scale);
 
-  // 실제 캔버스 크기(px)
   targetCanvas.width = newW;
   targetCanvas.height = newH;
-
-  // CSS 크기도 맞춰주기 (카드 안에서 보기 좋게)
   targetCanvas.style.width = newW + "px";
   targetCanvas.style.height = newH + "px";
 
-  // 크기 바뀌었으니 다시 그려주기
   drawTargetPlane(0, 0);
 }
 
-
-function drawTargetPlane(ballX, ballY) {
-  if (!targetCtx) return;
+function drawTargetPlane(ballX, ballY, tarX, tarY) {
+  if (!targetCtx || !targetCanvas) return;
 
   const w = targetCanvas.width;
   const h = targetCanvas.height;
 
   targetCtx.clearRect(0, 0, w, h);
 
-  // 필드 크기가 없으면 아직 초기화 안 된 상태
   if (!fieldWidth || !fieldHeight) {
     targetCtx.fillStyle = "#999";
     targetCtx.font = "12px sans-serif";
@@ -155,30 +169,85 @@ function drawTargetPlane(ballX, ballY) {
   targetCtx.lineWidth = 1;
   targetCtx.stroke();
 
-  // 실제 좌표 -> 캔버스 좌표
-  // ballX, ballY ∈ [-fieldWidth/2, fieldWidth/2], [-fieldHeight/2, fieldHeight/2]
-  const normX = ballX / fieldWidth + 0.5;   // 0~1
-  const normY = -ballY / fieldHeight + 0.5; // 위/아래 반전
+  // 좌표 변환 함수
+  const toCanvas = (x, y) => {
+    const nx = x / fieldWidth + 0.5;      // 0~1
+    const ny = -y / fieldHeight + 0.5;    // 0~1 (y는 반전)
+    const px = margin + nx * innerW;
+    const py = margin + ny * innerH;
+    return { px, py };
+  };
 
-  const px = margin + normX * innerW;
-  const py = margin + normY * innerH;
+  // ------------------------------
+  // 1) real_pose (초록색 원)
+  // ------------------------------
+  if (typeof ballX === "number" && typeof ballY === "number") {
+    const b = toCanvas(ballX, ballY);
+    targetCtx.beginPath();
+    targetCtx.arc(b.px, b.py, 6, 0, Math.PI * 2);
+    targetCtx.fillStyle = "#d32f2f";
+    targetCtx.fill();
 
-  targetCtx.beginPath();
-  targetCtx.arc(px, py, 6, 0, Math.PI * 2);
-  targetCtx.strokeStyle = "#2e7d32"; // 초록색
-  targetCtx.lineWidth = 2;
-  targetCtx.stroke();
-  targetCtx.fillStyle = "rgba(46, 125, 50, 0.3)";
-  targetCtx.fill();
+    if (ballXValEl) ballXValEl.textContent = ballX.toFixed(2);
+    if (ballYValEl) ballYValEl.textContent = ballY.toFixed(2);
+  }
 
-  // 숫자 표시
-  if (ballXValEl) ballXValEl.textContent = ballX.toFixed(2);
-  if (ballYValEl) ballYValEl.textContent = ballY.toFixed(2);
+  // ------------------------------
+  // 2) target_pose (빨간 X 표시)
+  // ------------------------------
+  if (typeof tarX === "number" && typeof tarY === "number") {
+    const b = toCanvas(tarX, tarY);
+    targetCtx.beginPath();
+    targetCtx.arc(b.px, b.py, 10, 0, Math.PI * 2);
+    targetCtx.strokeStyle = "#2e7d32";
+    targetCtx.lineWidth = 2;
+    targetCtx.stroke();
+    targetCtx.fillStyle = "rgba(46, 125, 50, 0.3)";
+    targetCtx.fill();
+
+    if (tarXValEl) ballXValEl.textContent = ballX.toFixed(2);
+    if (tarYValEl) ballYValEl.textContent = ballY.toFixed(2);
+  }
 }
 
+function clampTarget(x, y) {
+  if (fieldWidth) {
+    const halfW = fieldWidth / 2;
+    x = Math.max(-halfW, Math.min(halfW, x));
+  }
+  if (fieldHeight) {
+    const halfH = fieldHeight / 2;
+    y = Math.max(-halfH, Math.min(halfH, y));
+  }
+  return { x, y };
+}
 
+function setTarget(x, y) {
+  if (!targetX || !targetY) return;
+  const c = clampTarget(x, y);
+  targetX.value = c.x.toFixed(2);
+  targetY.value = c.y.toFixed(2);
+}
 
-// Socket.IO 이벤트
+function adjustTarget(dx, dy) {
+  if (!targetX || !targetY) return;
+
+  let x = parseFloat(targetX.value);
+  let y = parseFloat(targetY.value);
+
+  if (Number.isNaN(x)) x = 0;
+  if (Number.isNaN(y)) y = 0;
+
+  x += dx;
+  y += dy;
+
+  setTarget(x, y);
+}
+
+// ================================
+// 3. Socket.IO 이벤트
+// ================================
+
 socket.on("connect", () => {
   console.log("Socket connected:", socket.id);
   setStatus("Connected", "status-connected");
@@ -189,27 +258,26 @@ socket.on("disconnect", () => {
   setStatus("Disconnected", "status-disconnected");
 });
 
-
 // ESP hello → 웹 초기화
 socket.on("device_hello", (data) => {
   console.log("DEVICE HELLO:", data);
 
   const pid = data.PID_const || {};
   const pose = data.platform_pose || {};
-  const field = data.field_size || {};  // {width, height} 예상
+  const field = data.field_size || {};
 
   // PID 슬라이더 초기값
   if (kpSlider && typeof pid.Kp !== "undefined") {
     kpSlider.value = pid.Kp;
-    kpValue.textContent = Number(pid.Kp).toFixed(2);
+    if (kpValue) kpValue.textContent = Number(pid.Kp).toFixed(2);
   }
   if (kiSlider && typeof pid.Ki !== "undefined") {
     kiSlider.value = pid.Ki;
-    kiValue.textContent = Number(pid.Ki).toFixed(2);
+    if (kiValue) kiValue.textContent = Number(pid.Ki).toFixed(2);
   }
   if (kdSlider && typeof pid.Kd !== "undefined") {
     kdSlider.value = pid.Kd;
-    kdValue.textContent = Number(pid.Kd).toFixed(2);
+    if (kdValue) kdValue.textContent = Number(pid.Kd).toFixed(2);
   }
 
   // 초기 platform pose
@@ -227,7 +295,8 @@ socket.on("device_hello", (data) => {
     fieldHeight = field.height;
 
     if (fieldSizeLabelEl) {
-      fieldSizeLabelEl.textContent = `${fieldWidth.toFixed(0)} × ${fieldHeight.toFixed(0)}`;
+      fieldSizeLabelEl.textContent =
+        `${fieldWidth.toFixed(0)} × ${fieldHeight.toFixed(0)}`;
     }
     resizeTargetCanvas();
   }
@@ -241,8 +310,6 @@ socket.on("device_hello", (data) => {
     deviceIdEl.textContent = text;
   }
 });
-
-
 
 // MQTT status 수신 → 시각화
 socket.on("status_update", (data) => {
@@ -272,24 +339,32 @@ socket.on("status_update", (data) => {
   const real = data.real_pose || {};
   const bx = Number(real.x) || 0;
   const by = Number(real.y) || 0;
-  drawTargetPlane(bx, by);
+
+  // ball target_pose → target plane
+  const tar = data.target_pose || {};
+  const tx = Number(tar.x) || 0;
+  const ty = Number(tar.y) || 0;
+  drawTargetPlane(bx, by, tx, ty);
 
   // error
   const err = data.error || {};
   const ex = Number(err.x) || 0;
   const ey = Number(err.y) || 0;
 
-  // time
-  let t= Date.now() / 1000;
+  // time (그래프용, 일단 클라이언트 시간 기준)
+  const t = Date.now() / 1000;
 
   if (window.addErrorPoint) {
     window.addErrorPoint(t, ex, ey);
   }
 });
 
+// ================================
+// 4. DOMContentLoaded: 초기화 & 이벤트 등록
+// ================================
 
-// 초기화
 window.addEventListener("DOMContentLoaded", () => {
+  // 3D scene / 에러 그래프 초기화
   if (window.initPlatformScene) {
     window.initPlatformScene();
   }
@@ -300,6 +375,7 @@ window.addEventListener("DOMContentLoaded", () => {
     window.initErrorChart(ctx);
   }
 
+  // Target canvas 기본 크기 설정
   if (targetCanvas) {
     targetCanvas.width = TARGET_CANVAS_MAX_W;
     targetCanvas.height = TARGET_CANVAS_MAX_H;
@@ -307,32 +383,68 @@ window.addEventListener("DOMContentLoaded", () => {
     targetCanvas.style.height = TARGET_CANVAS_MAX_H + "px";
   }
 
-  // 초기 joystick / target plane는 원점 기준
+  // 초기 그림
   drawJoystick(0, 0);
   drawTargetPlane(0, 0);
-});
 
-// 슬라이더 값 표시 업데이트
-kpSlider.addEventListener("input", () => kpValue.textContent = Number(kpSlider.value).toFixed(2));
-kiSlider.addEventListener("input", () => kiValue.textContent = Number(kiSlider.value).toFixed(2));
-kdSlider.addEventListener("input", () => kdValue.textContent = Number(kdSlider.value).toFixed(2));
+  // ===== PID 슬라이더 이벤트 =====
+  if (kpSlider && kpValue) {
+    kpSlider.addEventListener("input", () => {
+      kpValue.textContent = Number(kpSlider.value).toFixed(2);
+    });
+  }
+  if (kiSlider && kiValue) {
+    kiSlider.addEventListener("input", () => {
+      kiValue.textContent = Number(kiSlider.value).toFixed(2);
+    });
+  }
+  if (kdSlider && kdValue) {
+    kdSlider.addEventListener("input", () => {
+      kdValue.textContent = Number(kdSlider.value).toFixed(2);
+    });
+  }
 
-// Apply 버튼 → SocketIO send
-pidApplyBtn.addEventListener("click", () => {
-  const payload = {
-    PID_const: {
-      Kp: Number(kpSlider.value),
-      Ki: Number(kiSlider.value),
-      Kd: Number(kdSlider.value),
-    },
-    time: Date.now() / 1000,        // 서버 시간 보낼 때
-    ctr_mode: "manual",
-    target_pose: {
-      x: Number(targetX.value),
-      y: Number(targetY.value),
-    }
-  };
+  // Apply 버튼 → SocketIO send
+  if (pidApplyBtn) {
+    pidApplyBtn.addEventListener("click", () => {
+      if (!kpSlider || !kiSlider || !kdSlider || !targetX || !targetY) return;
 
-  console.log("PID APPLY:", payload);
-  socket.emit("set_pid", payload);
+      const payload = {
+        PID_const: {
+          Kp: Number(kpSlider.value),
+          Ki: Number(kiSlider.value),
+          Kd: Number(kdSlider.value),
+        },
+        time: Date.now() / 1000,
+        ctr_mode: "manual",
+        target_pose: {
+          x: Number(targetX.value),
+          y: Number(targetY.value),
+        },
+      };
+
+      console.log("PID APPLY:", payload);
+      socket.emit("set_pid", payload);
+    });
+  }
+
+  // ===== Target 방향키 / Center 버튼 =====
+  if (targetCenterBtn) {
+    targetCenterBtn.addEventListener("click", () => setTarget(0, 0));
+  }
+  if (targetCenterPadBtn) {
+    targetCenterPadBtn.addEventListener("click", () => setTarget(0, 0));
+  }
+  if (targetUpBtn) {
+    targetUpBtn.addEventListener("click", () => adjustTarget(0, TARGET_STEP));
+  }
+  if (targetDownBtn) {
+    targetDownBtn.addEventListener("click", () => adjustTarget(0, -TARGET_STEP));
+  }
+  if (targetLeftBtn) {
+    targetLeftBtn.addEventListener("click", () => adjustTarget(-TARGET_STEP, 0));
+  }
+  if (targetRightBtn) {
+    targetRightBtn.addEventListener("click", () => adjustTarget(TARGET_STEP, 0));
+  }
 });
