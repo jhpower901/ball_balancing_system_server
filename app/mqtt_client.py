@@ -42,7 +42,7 @@ MQTT_TOPIC_CMD    = "ballbalancer/cmd"
     "x": 0.77,
     "y": -0.0
   },
-  "PID_const": {
+  "pid_const": {
         "kp_x": 0.55,
         "ki_x": 0.05,
         "kd_x": 0.275,
@@ -56,7 +56,7 @@ MQTT_TOPIC_CMD    = "ballbalancer/cmd"
 
 [cmd payload 예시]
 {
-  "PID_const": {
+  "pid_const": {
         "kp_x": 0.55,
         "ki_x": 0.05,
         "kd_x": 0.275,
@@ -77,7 +77,7 @@ MQTT_TOPIC_CMD    = "ballbalancer/cmd"
 {
   "device_id": "esp32-ball-1",
   "firmware": "1.0.0",
-  "PID_const": {
+  "pid_const": {
         "kp_x": 0.55,
         "ki_x": 0.05,
         "kd_x": 0.275,
@@ -155,7 +155,7 @@ class MQTTClient:
         """ESP 부팅 hello → 웹 초기화 + handshake cmd 전송"""
 
         device_id = payload.get("device_id", "unknown")
-        pid_const = payload.get("PID_const", {})
+        pid_const = payload.get("pid_const", {})
         platform_pose = payload.get("platform_pose", {})
         firmware = payload.get("firmware", "unknown")
         field_size = payload.get("field_size", None)
@@ -165,7 +165,7 @@ class MQTTClient:
         #      PID 슬라이더, 3D pose, device_id 표시
         self.socketio.emit("device_hello", {
             "device_id": device_id,
-            "PID_const": pid_const,
+            "pid_const": pid_const,
             "platform_pose": platform_pose,
             "firmware": firmware,
             "field_size": field_size,
@@ -176,10 +176,13 @@ class MQTTClient:
         #      time, ctr_mode, target_pose 는 서버에서 채움
         cmd = {
             "device_id": device_id,
-            "PID_const": {
-                "Kp": float(pid_const.get("Kp", 0.0)),
-                "Ki": float(pid_const.get("Ki", 0.0)),
-                "Kd": float(pid_const.get("Kd", 0.0)),
+            "pid_const": {
+                "kp_x": float(pid_const.get("kp_x", 0.0)),
+                "ki_x": float(pid_const.get("ki_x", 0.0)),
+                "kd_x": float(pid_const.get("kd_x", 0.0)),
+                "kp_y": float(pid_const.get("kp_y", 0.0)),
+                "ki_y": float(pid_const.get("ki_y", 0.0)),
+                "kd_y": float(pid_const.get("kd_y", 0.0)),
             },
             "time": time.time(),
             "ctr_mode": "manual",

@@ -269,7 +269,7 @@ socket.on("disconnect", () => {
 socket.on("device_hello", (data) => {
   console.log("DEVICE HELLO:", data);
 
-  const pid = data.PID_const || {};
+  const pid = data.pid_const || {};
   const pose = data.platform_pose || {};
   const field = data.field_size || {};
 
@@ -421,7 +421,7 @@ window.addEventListener("DOMContentLoaded", () => {
     pidApplyBtn.addEventListener("click", () => {
       if (!kpXSlider || !kiXSlider || !kdXSlider || !kpYSlider || !kiYSlider || !kdYSlider || !targetX || !targetY) return;
       const payload = {
-        PID_const: {
+        pid_const: {
           kp_x: Number(kpXSlider.value),
           ki_x: Number(kiXSlider.value),
           kd_x: Number(kdXSlider.value),
