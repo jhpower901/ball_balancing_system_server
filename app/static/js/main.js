@@ -432,7 +432,7 @@ window.addEventListener("DOMContentLoaded", () => {
         },
 
         time: Date.now(),
-        ctr_mode: "manual",
+        ctr_mode: "mqtt",
 
         target_pose: {
           x: Number(targetX.value),

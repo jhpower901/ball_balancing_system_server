@@ -185,7 +185,7 @@ class MQTTClient:
                 "kd_y": float(pid_const.get("kd_y", 0.0)),
             },
             "time": time.time(),
-            "ctr_mode": "manual",
+            "ctr_mode": "mqtt",
             "target_pose": {
                 "x": 0.0,
                 "y": 0.0,
