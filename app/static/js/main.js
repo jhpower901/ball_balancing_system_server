@@ -431,7 +431,7 @@ window.addEventListener("DOMContentLoaded", () => {
           kd_y: Number(kdYSlider.value),
         },
 
-        time: Date.now() / 1000,
+        time: Date.now(),
         ctr_mode: "manual",
 
         target_pose: {
