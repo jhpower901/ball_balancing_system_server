@@ -32,11 +32,8 @@ function initErrorChart(ctx) {
         },
         y: {
           title: { display: true, text: "Error" },
-          min: -1,   // 0을 중심으로 -1 ~ 1 범위 고정
-          max: 1,
-          ticks: {
-            stepSize: 0.2
-          }
+          min: -30,   // 0을 중심으로 -1 ~ 1 범위 고정
+          max: 30,
         },
       },
       plugins: {

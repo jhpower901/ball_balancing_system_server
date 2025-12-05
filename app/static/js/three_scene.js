@@ -52,8 +52,8 @@ function initPlatformScene() {
 function updatePlatformPose(rollDeg, pitchDeg) {
   if (!bbPlatformMesh) return;
 
-  const rollRad = (rollDeg * Math.PI) / 180;
-  const pitchRad = (pitchDeg * Math.PI) / 180;
+  const rollRad = (-rollDeg * Math.PI) / 180;
+  const pitchRad = (-pitchDeg * Math.PI) / 180;
 
   // X축: pitch, Z축: roll
   bbPlatformMesh.rotation.x = pitchRad;

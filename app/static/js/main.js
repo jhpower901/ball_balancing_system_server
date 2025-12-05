@@ -194,8 +194,8 @@ function drawTargetPlane(ballX, ballY, tarX, tarY) {
     targetCtx.fillStyle = "#d32f2f";
     targetCtx.fill();
 
-    if (ballXValEl) ballXValEl.textContent = ballX.toFixed(2);
-    if (ballYValEl) ballYValEl.textContent = ballY.toFixed(2);
+    if (ballXValEl) ballXValEl.textContent = ballX;
+    if (ballYValEl) ballYValEl.textContent = ballY;
   }
 
   // ------------------------------
@@ -211,8 +211,8 @@ function drawTargetPlane(ballX, ballY, tarX, tarY) {
     targetCtx.fillStyle = "rgba(46, 125, 50, 0.3)";
     targetCtx.fill();
 
-    if (tarXValEl) ballXValEl.textContent = ballX.toFixed(2);
-    if (tarYValEl) ballYValEl.textContent = ballY.toFixed(2);
+    if (tarXValEl) tarXValEl.textContent = tarX;
+    if (tarYValEl) tarYValEl.textContent = tarY;
   }
 }
 
