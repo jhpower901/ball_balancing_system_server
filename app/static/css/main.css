@@ -79,6 +79,60 @@ h1 {
   height: 260px;
 }
 
+/* Circle control 전체 박스 */
+.circle-control {
+  display: flex;
+  flex-direction: column;   /* 1행: 버튼, 2행: R/Speed */
+  align-items: flex-end;
+  gap: 4px;
+  margin: 4px 0 8px;
+}
+
+/* Circle 토글 버튼 */
+.icon-button {
+  border: 1px solid #ccc;
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: #f5f5f5;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.icon-button:hover {
+  background: #e0e0e0;
+}
+
+/* R/Speed/Start/Stop 줄 */
+.circle-panel {
+  display: flex;
+  flex-wrap: wrap;          /* 👉 카드 폭 넘치면 자동 줄바꿈 */
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  max-width: 100%;          /* 카드 밖으로 안 나가게 */
+}
+
+.circle-panel label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.circle-panel input[type="number"] {
+  width: 60px;
+}
+
+.small-btn {
+  padding: 2px 8px;
+  font-size: 0.8rem;
+  border-radius: 4px;
+}
+
+.hidden {
+  display: none;
+}
+
 /* 조이스틱 캔버스 */
 #joystick-canvas {
   border: 1px solid #ccc;
@@ -90,7 +144,7 @@ h1 {
 }
 
 .small-note {
-  font-size: 12px;
+  font-size: 10px;
   color: #666;
 }
 

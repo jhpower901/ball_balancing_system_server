@@ -27,6 +27,14 @@ const ballYValEl = document.getElementById("ball-y-val");
 const tarXValEl = document.getElementById("tar-x-val");
 const tarYValEl = document.getElementById("tar-y-val");
 
+// Circle mode UI
+const circleToggleBtn = document.getElementById("circle-toggle-btn");
+const circlePanel      = document.getElementById("circle-panel");
+const circleRadiusInp  = document.getElementById("circle-radius");
+const circleSpeedInp   = document.getElementById("circle-speed");
+const circleStartBtn   = document.getElementById("circle-start-btn");
+const circleStopBtn    = document.getElementById("circle-stop-btn");
+
 // Platform pose numeric
 const platformRollEl = document.getElementById("platform-roll-value");
 const platformPitchEl = document.getElementById("platform-pitch-value");
@@ -59,6 +67,16 @@ const targetCenterPadBtn = document.getElementById("target-center-pad-btn");
 // Target plane 실제 크기 (hello에서 초기화, 단위: mm)
 let fieldWidth = null;
 let fieldHeight = null;
+
+// Circle 모드 상태
+let circleTimer = null;
+let circleAngle = 0;
+let circleRadius = 0;
+let circleEnabled = false;
+
+// 최근 real_pose (Target Plane 그림용)
+let lastBallX = 0;
+let lastBallY = 0;
 
 // 방향키 한 번 클릭할 때 이동량 (단위: 실제 좌표)
 const TARGET_STEP = 5.0;
@@ -136,7 +154,7 @@ function resizeTargetCanvas() {
   targetCanvas.style.width = newW + "px";
   targetCanvas.style.height = newH + "px";
 
-  drawTargetPlane(0, 0);
+  drawTargetPlane(0, 0, 0, 0);
 }
 
 function drawTargetPlane(ballX, ballY, tarX, tarY) {
@@ -175,6 +193,19 @@ function drawTargetPlane(ballX, ballY, tarX, tarY) {
   targetCtx.lineWidth = 1;
   targetCtx.stroke();
 
+  // ===== 회색 궤도 (circleEnabled일 때만) =====
+  if (circleEnabled && circleRadius > 0) {
+    // 실제 좌표상의 원(R)을 캔버스 타원으로 매핑
+    const rx = (circleRadius / fieldWidth) * innerW;
+    const ry = (circleRadius / fieldHeight) * innerH;
+
+    targetCtx.beginPath();
+    targetCtx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    targetCtx.strokeStyle = "#bdbdbd";
+    targetCtx.lineWidth = 1;
+    targetCtx.stroke();
+  }
+
   // 좌표 변환 함수
   const toCanvas = (x, y) => {
     const nx = x / fieldWidth + 0.5;      // 0~1
@@ -194,8 +225,8 @@ function drawTargetPlane(ballX, ballY, tarX, tarY) {
     targetCtx.fillStyle = "#d32f2f";
     targetCtx.fill();
 
-    if (ballXValEl) ballXValEl.textContent = ballX;
-    if (ballYValEl) ballYValEl.textContent = ballY;
+    if (ballXValEl) ballXValEl.textContent = ballX.toFixed(1);
+    if (ballYValEl) ballYValEl.textContent = ballY.toFixed(1);
   }
 
   // ------------------------------
@@ -211,8 +242,8 @@ function drawTargetPlane(ballX, ballY, tarX, tarY) {
     targetCtx.fillStyle = "rgba(46, 125, 50, 0.3)";
     targetCtx.fill();
 
-    if (tarXValEl) tarXValEl.textContent = tarX;
-    if (tarYValEl) tarYValEl.textContent = tarY;
+    if (tarXValEl) tarXValEl.textContent = tarX.toFixed(1);
+    if (tarYValEl) tarYValEl.textContent = tarY.toFixed(1);
   }
 }
 
@@ -249,6 +280,72 @@ function adjustTarget(dx, dy) {
 
   setTarget(x, y);
 }
+
+function startCircleMode() {
+  if (!circleRadiusInp || !circleSpeedInp) return;
+
+  let R = parseFloat(circleRadiusInp.value);
+  let speed = parseFloat(circleSpeedInp.value);
+
+  if (!Number.isFinite(R) || R < 0) R = 0;
+  if (!Number.isFinite(speed)) speed = 0.5;
+
+  // 필드 크기 기준 반지름 제한
+  if (fieldWidth) {
+    const maxR = fieldWidth / 2 - 5;
+    R = Math.min(R, maxR);
+  }
+
+  circleRadius = R;
+  circleEnabled = true;
+
+  const intervalMs = 50; // 20Hz
+  circleAngle = 0;
+
+  if (circleTimer) {
+    clearInterval(circleTimer);
+    circleTimer = null;
+  }
+
+  circleTimer = setInterval(() => {
+    const omega = 2 * Math.PI * speed;          // [rad/s]
+    circleAngle += omega * (intervalMs / 1000); // Δθ
+
+    const tx = R * Math.cos(circleAngle);
+    const ty = R * Math.sin(circleAngle);
+
+    // UI target 업데이트 → status_update에서 이 값으로 그림
+    setTarget(tx, ty);
+
+    // CMD 발행
+    const payload = {
+      time: Date.now() / 1000,
+      ctr_mode: "manual",
+      target_pose: { x: tx, y: ty },
+    };
+    socket.emit("set_pid", payload);
+  }, intervalMs);
+}
+
+function stopCircleMode() {
+  if (circleTimer) {
+    clearInterval(circleTimer);
+    circleTimer = null;
+  }
+  circleEnabled = false;
+  circleRadius = 0;
+
+  // 마지막 상태 다시 그림 (원 궤도 제거)
+  if (typeof lastBallX === "number" && typeof lastBallY === "number") {
+    let tx = 0, ty = 0;
+    if (targetX && targetY) {
+      tx = Number(targetX.value) || 0;
+      ty = Number(targetY.value) || 0;
+    }
+    drawTargetPlane(lastBallX, lastBallY, tx, ty);
+  }
+}
+
 
 // ================================
 // 3. Socket.IO 이벤트
@@ -355,15 +452,20 @@ socket.on("status_update", (data) => {
   const jy = Number(joy.y) || 0;
   drawJoystick(jx, jy);
 
-  // ball real_pose → target plane
+  // real_pose
   const real = data.real_pose || {};
   const bx = Number(real.x) || 0;
   const by = Number(real.y) || 0;
+  lastBallX = bx;
+  lastBallY = by;
 
-  // ball target_pose → target plane
-  const tar = data.target_pose || {};
-  const tx = Number(tar.x) || 0;
-  const ty = Number(tar.y) || 0;
+  // target_pose는 MCU 값 대신, 현재 UI 값 기준
+  let tx = 0, ty = 0;
+  if (targetX && targetY) {
+    tx = Number(targetX.value) || 0;
+    ty = Number(targetY.value) || 0;
+  }
+
   drawTargetPlane(bx, by, tx, ty);
 
   // error
@@ -371,9 +473,7 @@ socket.on("status_update", (data) => {
   const ex = Number(err.x) || 0;
   const ey = Number(err.y) || 0;
 
-  // time (그래프용, 일단 클라이언트 시간 기준)
   const t = Date.now() / 1000;
-
   if (window.addErrorPoint) {
     window.addErrorPoint(t, ex, ey);
   }
@@ -405,7 +505,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   // 초기 그림
   drawJoystick(0, 0);
-  drawTargetPlane(0, 0);
+  drawTargetPlane(0, 0, 0, 0);
 
   // ===== PID 슬라이더 이벤트 =====
   kpXSlider.addEventListener("input", () => kpXValue.textContent = Number(kpXSlider.value).toFixed(2));
@@ -462,5 +562,23 @@ window.addEventListener("DOMContentLoaded", () => {
   }
   if (targetRightBtn) {
     targetRightBtn.addEventListener("click", () => adjustTarget(TARGET_STEP, 0));
+  }
+    // ===== Circle mode UI =====
+  if (circleToggleBtn && circlePanel) {
+    circleToggleBtn.addEventListener("click", () => {
+      circlePanel.classList.toggle("hidden");
+    });
+  }
+
+  if (circleStartBtn) {
+    circleStartBtn.addEventListener("click", () => {
+      startCircleMode();
+    });
+  }
+
+  if (circleStopBtn) {
+    circleStopBtn.addEventListener("click", () => {
+      stopCircleMode();
+    });
   }
 });
