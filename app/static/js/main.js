@@ -55,6 +55,7 @@ const kdYValue = document.getElementById("kd-y-value");
 const targetX = document.getElementById("target-x");
 const targetY = document.getElementById("target-y");
 const pidApplyBtn = document.getElementById("pid-apply-btn");
+const pidResetBtn = document.getElementById("pid-reset-btn");
 
 // Target control buttons
 const targetCenterBtn = document.getElementById("target-center-btn");
@@ -77,6 +78,9 @@ let circleEnabled = false;
 // 최근 real_pose (Target Plane 그림용)
 let lastBallX = 0;
 let lastBallY = 0;
+
+// 최근 status에서 받은 PID를 저장해 둘 변수
+let lastPidConst = null;
 
 // 방향키 한 번 클릭할 때 이동량 (단위: 실제 좌표)
 const TARGET_STEP = 5.0;
@@ -215,9 +219,7 @@ function drawTargetPlane(ballX, ballY, tarX, tarY) {
     return { px, py };
   };
 
-  // ------------------------------
-  // 1) real_pose (초록색 원)
-  // ------------------------------
+  // 1) real_pose
   if (typeof ballX === "number" && typeof ballY === "number") {
     const b = toCanvas(ballX, ballY);
     targetCtx.beginPath();
@@ -229,9 +231,7 @@ function drawTargetPlane(ballX, ballY, tarX, tarY) {
     if (ballYValEl) ballYValEl.textContent = ballY.toFixed(1);
   }
 
-  // ------------------------------
-  // 2) target_pose (빨간 X 표시)
-  // ------------------------------
+  // 2) target_pose (초록 원)
   if (typeof tarX === "number" && typeof tarY === "number") {
     const b = toCanvas(tarX, tarY);
     targetCtx.beginPath();
@@ -314,7 +314,7 @@ function startCircleMode() {
     const tx = R * Math.cos(circleAngle);
     const ty = R * Math.sin(circleAngle);
 
-    // UI target 업데이트 → status_update에서 이 값으로 그림
+    // UI target 업데이트 → status_update에서 이 값으로 그림 (circleEnabled=true)
     setTarget(tx, ty);
 
     // CMD 발행
@@ -346,6 +346,36 @@ function stopCircleMode() {
   }
 }
 
+// PID 값을 UI에 반영하는 공통 함수 (Reset 버튼 / 초기화 등에서만 사용)
+function applyPidConstToUI(pid) {
+  if (!pid) return;
+
+  if (kpXSlider && kpXValue && typeof pid.kp_x !== "undefined") {
+    kpXSlider.value = pid.kp_x;
+    kpXValue.textContent = Number(pid.kp_x).toFixed(2);
+  }
+  if (kiXSlider && kiXValue && typeof pid.ki_x !== "undefined") {
+    kiXSlider.value = pid.ki_x;
+    kiXValue.textContent = Number(pid.ki_x).toFixed(2);
+  }
+  if (kdXSlider && kdXValue && typeof pid.kd_x !== "undefined") {
+    kdXSlider.value = pid.kd_x;
+    kdXValue.textContent = Number(pid.kd_x).toFixed(2);
+  }
+
+  if (kpYSlider && kpYValue && typeof pid.kp_y !== "undefined") {
+    kpYSlider.value = pid.kp_y;
+    kpYValue.textContent = Number(pid.kp_y).toFixed(2);
+  }
+  if (kiYSlider && kiYValue && typeof pid.ki_y !== "undefined") {
+    kiYSlider.value = pid.ki_y;
+    kiYValue.textContent = Number(pid.ki_y).toFixed(2);
+  }
+  if (kdYSlider && kdYValue && typeof pid.kd_y !== "undefined") {
+    kdYSlider.value = pid.kd_y;
+    kdYValue.textContent = Number(pid.kd_y).toFixed(2);
+  }
+}
 
 // ================================
 // 3. Socket.IO 이벤트
@@ -362,7 +392,6 @@ socket.on("disconnect", () => {
 });
 
 // ESP hello → 웹 초기화
-
 socket.on("device_hello", (data) => {
   console.log("DEVICE HELLO:", data);
 
@@ -370,32 +399,9 @@ socket.on("device_hello", (data) => {
   const pose = data.platform_pose || {};
   const field = data.field_size || {};
 
-  // PID 슬라이더 초기값
-  if (kpXSlider && typeof pid.kp_x !== "undefined") {
-    kpXSlider.value = pid.kp_x;
-    kpXValue.textContent = Number(pid.kp_x).toFixed(2);
-  }
-  if (kiXSlider && typeof pid.ki_x !== "undefined") {
-    kiXSlider.value = pid.ki_x;
-    kiXValue.textContent = Number(pid.ki_x).toFixed(2);
-  }
-  if (kdXSlider && typeof pid.kd_x !== "undefined") {
-    kdXSlider.value = pid.kd_x;
-    kdXValue.textContent = Number(pid.kd_x).toFixed(2);
-  }
-
-  if (kpYSlider && typeof pid.kp_y !== "undefined") {
-    kpYSlider.value = pid.kp_y;
-    kpYValue.textContent = Number(pid.kp_y).toFixed(2);
-  }
-  if (kiYSlider && typeof pid.ki_y !== "undefined") {
-    kiYSlider.value = pid.ki_y;
-    kiYValue.textContent = Number(pid.ki_y).toFixed(2);
-  }
-  if (kdYSlider && typeof pid.kd_y !== "undefined") {
-    kdYSlider.value = pid.kd_y;
-    kdYValue.textContent = Number(pid.kd_y).toFixed(2);
-  }
+  // hello에서 온 PID 저장 및 UI 업데이트
+  lastPidConst = pid;
+  applyPidConstToUI(pid);
 
   // 초기 platform pose
   const roll = Number(pose.roll) || 0;
@@ -459,11 +465,35 @@ socket.on("status_update", (data) => {
   lastBallX = bx;
   lastBallY = by;
 
-  // target_pose는 MCU 값 대신, 현재 UI 값 기준
+  // target_pose 처리 로직
+  //  - circleEnabled: 브라우저 UI 값 사용 (circle trajectory 유지)
+  //  - 나머지: MQTT target_pose 사용 + UI 동기화
   let tx = 0, ty = 0;
-  if (targetX && targetY) {
-    tx = Number(targetX.value) || 0;
-    ty = Number(targetY.value) || 0;
+
+  if (circleEnabled) {
+    if (targetX && targetY) {
+      tx = Number(targetX.value) || 0;
+      ty = Number(targetY.value) || 0;
+    }
+  } else {
+    const target = data.target_pose || {};
+    tx = Number(target.x);
+    ty = Number(target.y);
+
+    if (!Number.isFinite(tx) || !Number.isFinite(ty)) {
+      if (targetX && targetY) {
+        tx = Number(targetX.value) || 0;
+        ty = Number(targetY.value) || 0;
+      } else {
+        tx = 0;
+        ty = 0;
+      }
+    } else {
+      if (targetX && targetY) {
+        targetX.value = tx.toFixed(2);
+        targetY.value = ty.toFixed(2);
+      }
+    }
   }
 
   drawTargetPlane(bx, by, tx, ty);
@@ -476,6 +506,11 @@ socket.on("status_update", (data) => {
   const t = Date.now() / 1000;
   if (window.addErrorPoint) {
     window.addErrorPoint(t, ex, ey);
+  }
+
+  // 최근 PID 상태만 저장 (UI에는 반영하지 않음)
+  if (data.pid_const) {
+    lastPidConst = data.pid_const;
   }
 });
 
@@ -508,18 +543,45 @@ window.addEventListener("DOMContentLoaded", () => {
   drawTargetPlane(0, 0, 0, 0);
 
   // ===== PID 슬라이더 이벤트 =====
-  kpXSlider.addEventListener("input", () => kpXValue.textContent = Number(kpXSlider.value).toFixed(2));
-  kiXSlider.addEventListener("input", () => kiXValue.textContent = Number(kiXSlider.value).toFixed(2));
-  kdXSlider.addEventListener("input", () => kdXValue.textContent = Number(kdXSlider.value).toFixed(2));
+  if (kpXSlider && kpXValue) {
+    kpXSlider.addEventListener("input", () => {
+      kpXValue.textContent = Number(kpXSlider.value).toFixed(2);
+    });
+  }
+  if (kiXSlider && kiXValue) {
+    kiXSlider.addEventListener("input", () => {
+      kiXValue.textContent = Number(kiXSlider.value).toFixed(2);
+    });
+  }
+  if (kdXSlider && kdXValue) {
+    kdXSlider.addEventListener("input", () => {
+      kdXValue.textContent = Number(kdXSlider.value).toFixed(2);
+    });
+  }
 
-  kpYSlider.addEventListener("input", () => kpYValue.textContent = Number(kpYSlider.value).toFixed(2));
-  kiYSlider.addEventListener("input", () => kiYValue.textContent = Number(kiYSlider.value).toFixed(2));
-  kdYSlider.addEventListener("input", () => kdYValue.textContent = Number(kdYSlider.value).toFixed(2));
+  if (kpYSlider && kpYValue) {
+    kpYSlider.addEventListener("input", () => {
+      kpYValue.textContent = Number(kpYSlider.value).toFixed(2);
+    });
+  }
+  if (kiYSlider && kiYValue) {
+    kiYSlider.addEventListener("input", () => {
+      kiYValue.textContent = Number(kiYSlider.value).toFixed(2);
+    });
+  }
+  if (kdYSlider && kdYValue) {
+    kdYSlider.addEventListener("input", () => {
+      kdYValue.textContent = Number(kdYSlider.value).toFixed(2);
+    });
+  }
 
   // Apply 버튼 → SocketIO send
   if (pidApplyBtn) {
     pidApplyBtn.addEventListener("click", () => {
-      if (!kpXSlider || !kiXSlider || !kdXSlider || !kpYSlider || !kiYSlider || !kdYSlider || !targetX || !targetY) return;
+      if (!kpXSlider || !kiXSlider || !kdXSlider ||
+          !kpYSlider || !kiYSlider || !kdYSlider ||
+          !targetX || !targetY) return;
+
       const payload = {
         pid_const: {
           kp_x: Number(kpXSlider.value),
@@ -544,6 +606,17 @@ window.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Reset 버튼 → 마지막 status PID로 되돌리기
+  if (pidResetBtn) {
+    pidResetBtn.addEventListener("click", () => {
+      if (!lastPidConst) {
+        console.warn("No PID status received yet to reset.");
+        return;
+      }
+      applyPidConstToUI(lastPidConst);
+    });
+  }
+
   // ===== Target 방향키 / Center 버튼 =====
   if (targetCenterBtn) {
     targetCenterBtn.addEventListener("click", () => setTarget(0, 0));
@@ -563,7 +636,8 @@ window.addEventListener("DOMContentLoaded", () => {
   if (targetRightBtn) {
     targetRightBtn.addEventListener("click", () => adjustTarget(TARGET_STEP, 0));
   }
-    // ===== Circle mode UI =====
+
+  // ===== Circle mode UI =====
   if (circleToggleBtn && circlePanel) {
     circleToggleBtn.addEventListener("click", () => {
       circlePanel.classList.toggle("hidden");
