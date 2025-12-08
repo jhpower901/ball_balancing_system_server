@@ -4,7 +4,6 @@
 // 1. 기본 설정 & DOM 참조
 // ================================
 
-// three_scene.js / charts.js 에서 window에 올려둔 전역 함수 사용
 const socket = io();
 
 // 상태 표시
@@ -65,7 +64,7 @@ const targetLeftBtn = document.getElementById("target-left-btn");
 const targetRightBtn = document.getElementById("target-right-btn");
 const targetCenterPadBtn = document.getElementById("target-center-pad-btn");
 
-// Target plane 실제 크기 (hello에서 초기화, 단위: mm)
+// Target plane 실제 크기 (hello 또는 status에서 초기화, 단위: mm)
 let fieldWidth = null;
 let fieldHeight = null;
 
@@ -79,7 +78,7 @@ let circleEnabled = false;
 let lastBallX = 0;
 let lastBallY = 0;
 
-// 최근 status에서 받은 PID를 저장해 둘 변수
+// 최근 status/hello에서 받은 PID를 저장해 둘 변수
 let lastPidConst = null;
 
 // 방향키 한 번 클릭할 때 이동량 (단위: 실제 좌표)
@@ -172,7 +171,7 @@ function drawTargetPlane(ballX, ballY, tarX, tarY) {
   if (!fieldWidth || !fieldHeight) {
     targetCtx.fillStyle = "#999";
     targetCtx.font = "12px sans-serif";
-    targetCtx.fillText("waiting for field_size from hello...", 10, 20);
+    targetCtx.fillText("waiting for field_size from hello/status...", 10, 20);
     return;
   }
 
@@ -199,7 +198,6 @@ function drawTargetPlane(ballX, ballY, tarX, tarY) {
 
   // ===== 회색 궤도 (circleEnabled일 때만) =====
   if (circleEnabled && circleRadius > 0) {
-    // 실제 좌표상의 원(R)을 캔버스 타원으로 매핑
     const rx = (circleRadius / fieldWidth) * innerW;
     const ry = (circleRadius / fieldHeight) * innerH;
 
@@ -314,10 +312,9 @@ function startCircleMode() {
     const tx = R * Math.cos(circleAngle);
     const ty = R * Math.sin(circleAngle);
 
-    // UI target 업데이트 → status_update에서 이 값으로 그림 (circleEnabled=true)
+    // UI target 업데이트 → status_update에서 이 값으로 그림
     setTarget(tx, ty);
 
-    // CMD 발행
     const payload = {
       time: Date.now() / 1000,
       ctr_mode: "manual",
@@ -335,7 +332,6 @@ function stopCircleMode() {
   circleEnabled = false;
   circleRadius = 0;
 
-  // 마지막 상태 다시 그림 (원 궤도 제거)
   if (typeof lastBallX === "number" && typeof lastBallY === "number") {
     let tx = 0, ty = 0;
     if (targetX && targetY) {
@@ -346,7 +342,7 @@ function stopCircleMode() {
   }
 }
 
-// PID 값을 UI에 반영하는 공통 함수 (Reset 버튼 / 초기화 등에서만 사용)
+// PID 값을 UI에 반영하는 공통 함수
 function applyPidConstToUI(pid) {
   if (!pid) return;
 
@@ -377,6 +373,43 @@ function applyPidConstToUI(pid) {
   }
 }
 
+// field_size 적용 (hello + status에서 공통 사용)
+function applyFieldSize(field) {
+  if (
+    !field ||
+    typeof field.width !== "number" ||
+    typeof field.height !== "number"
+  ) {
+    return;
+  }
+
+  const newW = field.width;
+  const newH = field.height;
+  const changed = newW !== fieldWidth || newH !== fieldHeight;
+
+  fieldWidth = newW;
+  fieldHeight = newH;
+
+  if (fieldSizeLabelEl) {
+    fieldSizeLabelEl.textContent =
+      `${fieldWidth.toFixed(0)} × ${fieldHeight.toFixed(0)}`;
+  }
+
+  if (changed) {
+    resizeTargetCanvas();
+  }
+}
+
+// device_id + firmware 표시 (hello + status에서 공통 사용)
+function applyDeviceInfo(deviceId, firmware) {
+  if (!deviceIdEl || !deviceId) return;
+  let text = `Device: ${deviceId}`;
+  if (firmware) {
+    text += ` (fw ${firmware})`;
+  }
+  deviceIdEl.textContent = text;
+}
+
 // ================================
 // 3. Socket.IO 이벤트
 // ================================
@@ -391,19 +424,19 @@ socket.on("disconnect", () => {
   setStatus("Disconnected", "status-disconnected");
 });
 
-// ESP hello → 웹 초기화
+// ESP hello → 웹 초기화 (최초 PID UI 초기화 포함)
 socket.on("device_hello", (data) => {
   console.log("DEVICE HELLO:", data);
 
-  const pid = data.pid_const || {};
-  const pose = data.platform_pose || {};
+  const pid   = data.pid_const || {};
+  const pose  = data.platform_pose || {};
   const field = data.field_size || {};
 
-  // hello에서 온 PID 저장 및 UI 업데이트
+  // PID: hello에서 한 번만 UI 초기화
   lastPidConst = pid;
   applyPidConstToUI(pid);
 
-  // 초기 platform pose
+  // platform pose
   const roll = Number(pose.roll) || 0;
   const pitch = Number(pose.pitch) || 0;
   if (window.updatePlatformPose) {
@@ -412,29 +445,14 @@ socket.on("device_hello", (data) => {
   if (platformRollEl) platformRollEl.textContent = roll.toFixed(2);
   if (platformPitchEl) platformPitchEl.textContent = pitch.toFixed(2);
 
-  // field_size 저장
-  if (typeof field.width === "number" && typeof field.height === "number") {
-    fieldWidth = field.width;
-    fieldHeight = field.height;
+  // field_size
+  applyFieldSize(field);
 
-    if (fieldSizeLabelEl) {
-      fieldSizeLabelEl.textContent =
-        `${fieldWidth.toFixed(0)} × ${fieldHeight.toFixed(0)}`;
-    }
-    resizeTargetCanvas();
-  }
-
-  // device_id 표시
-  if (deviceIdEl && data.device_id) {
-    let text = `Device: ${data.device_id}`;
-    if (data.firmware) {
-      text += ` (fw ${data.firmware})`;
-    }
-    deviceIdEl.textContent = text;
-  }
+  // device info
+  applyDeviceInfo(data.device_id, data.firmware);
 });
 
-// MQTT status 수신 → 시각화
+// MQTT status 수신 → 시각화 (PID UI는 건드리지 않음)
 socket.on("status_update", (data) => {
   console.log("MQTT status:", data);
 
@@ -465,9 +483,7 @@ socket.on("status_update", (data) => {
   lastBallX = bx;
   lastBallY = by;
 
-  // target_pose 처리 로직
-  //  - circleEnabled: 브라우저 UI 값 사용 (circle trajectory 유지)
-  //  - 나머지: MQTT target_pose 사용 + UI 동기화
+  // target_pose: UI를 기준으로 사용
   let tx = 0, ty = 0;
 
   if (circleEnabled) {
@@ -496,6 +512,10 @@ socket.on("status_update", (data) => {
     }
   }
 
+  // circleEnabled 여부와 상관없이, targetX/Y는 이미
+  // - 수동 조작 시: 사용자가 입력한 값
+  // - circle mode 시: startCircleMode → setTarget()으로 갱신된 값
+  // 이라서, 여기서는 그냥 그 값을 사용해서만 그림
   drawTargetPlane(bx, by, tx, ty);
 
   // error
@@ -508,10 +528,14 @@ socket.on("status_update", (data) => {
     window.addErrorPoint(t, ex, ey);
   }
 
-  // 최근 PID 상태만 저장 (UI에는 반영하지 않음)
+  // PID 상태는 저장만 (UI는 Reset 버튼에서만 반영)
   if (data.pid_const) {
     lastPidConst = data.pid_const;
   }
+
+  // field_size / device info도 status에 포함되면 실시간 업데이트
+  applyFieldSize(data.field_size || {});
+  applyDeviceInfo(data.device_id, data.firmware);
 });
 
 // ================================
@@ -575,7 +599,7 @@ window.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Apply 버튼 → SocketIO send
+  // Apply 버튼 → PID 적용 MQTT 전송
   if (pidApplyBtn) {
     pidApplyBtn.addEventListener("click", () => {
       if (!kpXSlider || !kiXSlider || !kdXSlider ||
@@ -606,7 +630,7 @@ window.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Reset 버튼 → 마지막 status PID로 되돌리기
+  // Reset 버튼 → 마지막 status/hello PID로 되돌리기
   if (pidResetBtn) {
     pidResetBtn.addEventListener("click", () => {
       if (!lastPidConst) {
