@@ -84,6 +84,9 @@ let lastPidConst = null;
 // 방향키 한 번 클릭할 때 이동량 (단위: 실제 좌표)
 const TARGET_STEP = 5.0;
 
+let uiTargetX = 0;
+let uiTargetY = 0;
+
 // 캔버스가 차지할 최대 픽셀 크기
 const TARGET_CANVAS_MAX_W = 250;
 const TARGET_CANVAS_MAX_H = 250;
@@ -317,7 +320,7 @@ function startCircleMode() {
 
     const payload = {
       time: Date.now() / 1000,
-      ctr_mode: "manual",
+      ctr_mode: "mqtt",
       target_pose: { x: tx, y: ty },
     };
     socket.emit("set_pid", payload);
@@ -492,10 +495,12 @@ socket.on("status_update", (data) => {
       ty = Number(targetY.value) || 0;
     }
   } else {
+    // status의 타겟 좌표를 plane에 넘기기 위해 저장
     const target = data.target_pose || {};
     tx = Number(target.x);
     ty = Number(target.y);
 
+    //유효성 검증
     if (!Number.isFinite(tx) || !Number.isFinite(ty)) {
       if (targetX && targetY) {
         tx = Number(targetX.value) || 0;
@@ -503,11 +508,6 @@ socket.on("status_update", (data) => {
       } else {
         tx = 0;
         ty = 0;
-      }
-    } else {
-      if (targetX && targetY) {
-        targetX.value = tx.toFixed(2);
-        targetY.value = ty.toFixed(2);
       }
     }
   }
